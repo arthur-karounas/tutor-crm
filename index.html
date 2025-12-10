@@ -5,60 +5,75 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>ZenTutor CRM</title>
     
-    <!-- Настройки для iOS -->
+    <!-- Настройки для iOS (чтобы выглядело как приложение) -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="ZenTutor">
     <meta name="theme-color" content="#f8fafc">
     
+    <!-- Иконка для iPhone (используем внешний CDN для простоты, можно заменить на свою) -->
     <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2997/2997235.png">
 
-    <!-- Ловушка ошибок для iPhone: покажет alert, если скрипты не загрузятся -->
-    <script>
-        window.onerror = function(msg, url, line, col, error) {
-            document.getElementById('loading-text').innerText = "Ошибка: " + msg;
-            document.getElementById('loading-text').style.color = "red";
-            return false;
-        };
-    </script>
-
-    <!-- Подключаем библиотеки -->
+    <!-- Подключаем Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Подключаем React и ReactDOM -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    
+    <!-- Подключаем Babel для обработки JSX -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Подключаем html2canvas для создания скриншотов -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     
     <style>
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        .animate-fade-in { animation: fadeIn 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
-        .animate-fade-in-up { animation: fadeIn 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
-        .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
-        .scrollbar-hide::-webkit-scrollbar { display: none; }
-        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
-        
-        /* Исправленный CSS для touch-action */
-        html, body {
-            touch-action: manipulation;
-            overscroll-behavior-y: none; /* Предотвращает "пружинивание" страницы */
+        /* Дополнительные стили для плавных анимаций */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
         }
+        /* Ускорил анимацию до 0.3s для большей отзывчивости */
+        .animate-fade-in {
+            animation: fadeIn 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        }
+        .animate-fade-in-up {
+            animation: fadeIn 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        }
+        /* Фикс для мобильного Safari, чтобы нижняя панель не перекрывалась системной */
+        .pb-safe {
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+        /* Скрываем скроллбар для эстетики, сохраняя функционал */
+        .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+        }
+        .scrollbar-hide {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        /* Предотвращаем зум при двойном тапе на iOS */
+        touch-action: manipulation;
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800 antialiased overflow-x-hidden selection:bg-blue-100">
-    
-    <!-- Экран загрузки (исчезнет, когда React запустится) -->
-    <div id="root" class="min-h-screen flex items-center justify-center flex-col text-slate-400">
-        <div class="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-        <span id="loading-text">Загрузка ZenTutor...</span>
-    </div>
+    <div id="root"></div>
 
     <script type="text/babel">
         // Получаем хуки из глобального объекта React
         const { useState, useEffect, useMemo, useRef } = React;
 
-        // --- ВСТРОЕННЫЕ ИКОНКИ ---
+        // --- ВСТРОЕННЫЕ ИКОНКИ (замена внешней библиотеки для надежности) ---
         const Icon = ({ children, className = "" }) => (
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>{children}</svg>
+            <svg 
+                xmlns="http://www.w3.org/2000/svg" 
+                width="24" height="24" viewBox="0 0 24 24" 
+                fill="none" stroke="currentColor" strokeWidth="2" 
+                strokeLinecap="round" strokeLinejoin="round" 
+                className={className}
+            >
+                {children}
+            </svg>
         );
 
         const Users = (p) => <Icon {...p}><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></Icon>;
