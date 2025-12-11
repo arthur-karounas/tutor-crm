@@ -3,77 +3,112 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ZenTutor CRM</title>
+    <title>ZenTutor CRM v2.5</title>
     
-    <!-- Настройки для iOS (чтобы выглядело как приложение) -->
+    <!-- Настройки для iOS -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="ZenTutor">
     <meta name="theme-color" content="#f8fafc">
     
-    <!-- Иконка для iPhone (используем внешний CDN для простоты, можно заменить на свою) -->
     <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2997/2997235.png">
 
-    <!-- Подключаем Tailwind CSS -->
+    <script>
+        window.onerror = function(msg, url, line, col, error) {
+            const loadingText = document.getElementById('loading-text');
+            if(loadingText) {
+                loadingText.innerText = "Ошибка: " + msg;
+                loadingText.style.color = "red";
+            }
+            return false;
+        };
+    </script>
+
+    <!-- Подключаем библиотеки -->
     <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- Подключаем React и ReactDOM -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-    
-    <!-- Подключаем Babel для обработки JSX -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    
-    <!-- Подключаем html2canvas для создания скриншотов -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     
     <style>
-        /* Дополнительные стили для плавных анимаций */
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-fade-in { animation: fadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+        
+        @keyframes fadeOut { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(10px); } }
+        .animate-fade-out { animation: fadeOut 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+
+        .animate-fade-in-up { animation: fadeIn 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+        .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        /* Глобальный скроллбар для эстетики */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
         }
-        /* Ускорил анимацию до 0.3s для большей отзывчивости */
-        .animate-fade-in {
-            animation: fadeIn 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        ::-webkit-scrollbar-track {
+            background: transparent;
         }
-        .animate-fade-in-up {
-            animation: fadeIn 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        ::-webkit-scrollbar-thumb {
+            background-color: #cbd5e1;
+            border-radius: 4px;
         }
-        /* Фикс для мобильного Safari, чтобы нижняя панель не перекрывалась системной */
-        .pb-safe {
-            padding-bottom: env(safe-area-inset-bottom);
+        ::-webkit-scrollbar-thumb:hover {
+            background-color: #94a3b8;
         }
-        /* Скрываем скроллбар для эстетики, сохраняя функционал */
-        .scrollbar-hide::-webkit-scrollbar {
+
+        html, body {
+            touch-action: manipulation;
+            overscroll-behavior-y: none;
+        }
+        
+        /* Утилита для скрытия скролла внутри элементов, где он не нужен */
+        .no-scrollbar::-webkit-scrollbar {
             display: none;
         }
-        .scrollbar-hide {
+        .no-scrollbar {
             -ms-overflow-style: none;
             scrollbar-width: none;
         }
-        /* Предотвращаем зум при двойном тапе на iOS */
-        touch-action: manipulation;
+
+        /* Убираем системные спиннеры у input type=number */
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { 
+            -webkit-appearance: none; 
+            margin: 0; 
+        }
+        input[type=number] {
+            -moz-appearance: textfield; /* Firefox */
+        }
+
+        /* Линии для заметок */
+        .notepad-lines {
+            background-image: linear-gradient(#e5e7eb 1px, transparent 1px);
+            background-size: 100% 2rem; /* Высота строки */
+            line-height: 2rem;
+            background-attachment: local;
+        }
+
+        /* Утилиты для анимации высоты (grid trick) */
+        .grid-rows-0 { grid-template-rows: 0fr; }
+        .grid-rows-1 { grid-template-rows: 1fr; }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800 antialiased overflow-x-hidden selection:bg-blue-100">
-    <div id="root"></div>
+    
+    <div id="root" class="min-h-screen flex items-center justify-center flex-col text-slate-400">
+        <div class="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+        <span id="loading-text">Загрузка ZenTutor...</span>
+    </div>
 
     <script type="text/babel">
-        // Получаем хуки из глобального объекта React
         const { useState, useEffect, useMemo, useRef } = React;
 
-        // --- ВСТРОЕННЫЕ ИКОНКИ (замена внешней библиотеки для надежности) ---
+        // --- ICONS ---
         const Icon = ({ children, className = "" }) => (
-            <svg 
-                xmlns="http://www.w3.org/2000/svg" 
-                width="24" height="24" viewBox="0 0 24 24" 
-                fill="none" stroke="currentColor" strokeWidth="2" 
-                strokeLinecap="round" strokeLinejoin="round" 
-                className={className}
-            >
-                {children}
-            </svg>
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>{children}</svg>
         );
 
         const Users = (p) => <Icon {...p}><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></Icon>;
@@ -86,22 +121,63 @@
         const Clock = (p) => <Icon {...p}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></Icon>;
         const ChevronRight = (p) => <Icon {...p}><polyline points="9 18 15 12 9 6"/></Icon>;
         const ChevronLeft = (p) => <Icon {...p}><polyline points="15 18 9 12 15 6"/></Icon>;
+        const ChevronDown = (p) => <Icon {...p}><polyline points="6 9 12 15 18 9"/></Icon>;
         const ArrowLeft = (p) => <Icon {...p}><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></Icon>;
         const DollarSign = (p) => <Icon {...p}><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></Icon>;
-        const BookOpen = (p) => <Icon {...p}><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></Icon>;
-        const AlertCircle = (p) => <Icon {...p}><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></Icon>;
         const Download = (p) => <Icon {...p}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></Icon>;
         const LayoutList = (p) => <Icon {...p}><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></Icon>;
         const LayoutGrid = (p) => <Icon {...p}><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></Icon>;
         const Columns = (p) => <Icon {...p}><path d="M12 3h7a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-7m0-18H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h7m0-18v18"/></Icon>;
+        const Trash2 = (p) => <Icon {...p}><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></Icon>;
+        const EditIcon = (p) => <Icon {...p}><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></Icon>;
+        const SaveIcon = (p) => <Icon {...p}><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></Icon>;
+        const BookOpen = (p) => <Icon {...p}><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></Icon>;
+        const Book = (p) => <Icon {...p}><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></Icon>;
 
-        // --- Компоненты UI (Минимализм) ---
 
-        const Card = ({ children, className = "" }) => (
-            <div className={`bg-white rounded-2xl shadow-sm border border-slate-100 p-6 ${className}`}>
-                {children}
-            </div>
-        );
+        // --- COMPONENTS ---
+
+        const Card = ({ children, className = "", onClick, noTilt = false }) => {
+            const ref = useRef(null);
+            const [transform, setTransform] = useState('');
+            const [transition, setTransition] = useState('');
+
+            const handleMouseMove = (e) => {
+                if (noTilt || !ref.current) return;
+                
+                const { left, top, width, height } = ref.current.getBoundingClientRect();
+                const x = e.clientX - left;
+                const y = e.clientY - top;
+                
+                const centerX = width / 2;
+                const centerY = height / 2;
+                
+                const rotateX = ((y - centerY) / centerY) * -3; 
+                const rotateY = ((x - centerX) / centerX) * 3; 
+
+                setTransform(`perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale3d(1.01, 1.01, 1.01)`);
+                setTransition('transform 0.1s ease-out');
+            };
+
+            const handleMouseLeave = () => {
+                if (noTilt) return;
+                setTransform('perspective(1000px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)');
+                setTransition('transform 0.4s ease-out');
+            };
+
+            return (
+                <div 
+                    ref={ref}
+                    onClick={onClick}
+                    onMouseMove={handleMouseMove}
+                    onMouseLeave={handleMouseLeave}
+                    style={{ transform, transition, willChange: 'transform' }}
+                    className={`bg-white rounded-2xl shadow-sm border border-slate-100 p-6 ${onClick ? 'cursor-pointer' : ''} ${className}`}
+                >
+                    {children}
+                </div>
+            );
+        };
 
         const Button = ({ children, onClick, variant = 'primary', className = "", disabled = false }) => {
             const baseStyle = "px-4 py-2 rounded-xl font-medium transition-all active:scale-95 flex items-center justify-center gap-2";
@@ -112,11 +188,7 @@
                 danger: "bg-rose-50 text-rose-600 hover:bg-rose-100",
                 ghost: "text-slate-500 hover:bg-slate-50"
             };
-            return (
-                <button onClick={onClick} disabled={disabled} className={`${baseStyle} ${variants[variant]} ${className}`}>
-                    {children}
-                </button>
-            );
+            return <button onClick={onClick} disabled={disabled} className={`${baseStyle} ${variants[variant]} ${className}`}>{children}</button>;
         };
 
         const Badge = ({ status }) => {
@@ -132,10 +204,76 @@
                 Cancelled_Tutor: "Моя отмена",
                 Cancelled_Student: "Отмена ученика",
             };
+            return <span className={`px-2 py-1 rounded-lg text-xs font-medium ${styles[status] || styles.Planned}`}>{labels[status] || status}</span>;
+        };
+
+        // --- ANIMATION HELPER: SmoothCollapse ---
+        // Использует grid-template-rows для плавной анимации высоты от 0 до auto
+        const SmoothCollapse = ({ isOpen, children, className = "" }) => {
             return (
-                <span className={`px-2 py-1 rounded-lg text-xs font-medium ${styles[status] || styles.Planned}`}>
-                    {labels[status] || status}
-                </span>
+                <div 
+                    className={`grid transition-[grid-template-rows,opacity] duration-300 ease-in-out ${isOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'} ${className}`}
+                >
+                    <div className="overflow-hidden min-h-0">
+                        {children}
+                    </div>
+                </div>
+            );
+        };
+
+        // --- Custom Toggle Switch ---
+        const ToggleSwitch = ({ label, checked, onChange }) => (
+            <label className="flex items-center justify-between cursor-pointer group bg-slate-50 p-3 rounded-xl border border-slate-200 hover:bg-slate-100 transition-colors">
+                <span className="text-sm text-slate-700 group-hover:text-slate-900 transition-colors">{label}</span>
+                <div className="relative">
+                    <input type="checkbox" className="sr-only peer" checked={checked} onChange={onChange} />
+                    <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                </div>
+            </label>
+        );
+
+        // --- Custom SELECT Picker ---
+        const SimpleSelect = ({ options, value, onChange, placeholder, icon: IconComponent, className = "" }) => {
+            const [isOpen, setIsOpen] = useState(false);
+            const selectedOption = options.find(o => o.value == value);
+
+            return (
+                <div className={`relative ${className}`}>
+                    <div 
+                        onClick={() => setIsOpen(!isOpen)}
+                        className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 cursor-pointer hover:bg-slate-100 transition-colors h-11"
+                    >
+                        <div className="flex items-center gap-2 overflow-hidden">
+                            {IconComponent && <IconComponent className="w-4 h-4 text-slate-500 flex-shrink-0" />}
+                            <span className={`text-sm truncate ${!selectedOption ? 'text-slate-400' : 'text-slate-700'}`}>
+                                {selectedOption ? selectedOption.label : placeholder}
+                            </span>
+                        </div>
+                        <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                    </div>
+
+                    {isOpen && (
+                        <>
+                            <div className="fixed inset-0 z-20" onClick={() => setIsOpen(false)}></div>
+                            <div className="absolute top-full mt-2 left-0 w-full z-30 bg-white rounded-xl shadow-xl border border-slate-100 overflow-hidden animate-fade-in-up max-h-60 overflow-y-auto">
+                                {options.length === 0 ? (
+                                    <div className="p-3 text-sm text-slate-400 text-center">Нет вариантов</div>
+                                ) : (
+                                    options.map(option => (
+                                        <div 
+                                            key={option.value}
+                                            onClick={() => { onChange(option.value); setIsOpen(false); }}
+                                            className={`px-4 py-3 text-sm cursor-pointer hover:bg-slate-50 flex items-center justify-between ${option.value == value ? 'bg-blue-50 text-blue-600 font-medium' : 'text-slate-700'}`}
+                                        >
+                                            {option.label}
+                                            {option.value == value && <Check className="w-3 h-3" />}
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        </>
+                    )}
+                </div>
             );
         };
 
@@ -151,16 +289,8 @@
                 return day === 0 ? 6 : day - 1; 
             };
 
-            const handlePrev = (e) => {
-                e.stopPropagation();
-                setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1));
-            };
-            
-            const handleNext = (e) => {
-                e.stopPropagation();
-                setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1));
-            };
-
+            const handlePrev = (e) => { e.stopPropagation(); setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1)); };
+            const handleNext = (e) => { e.stopPropagation(); setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1)); };
             const handleDayClick = (day) => {
                 const m = (viewDate.getMonth() + 1).toString().padStart(2, '0');
                 const d = day.toString().padStart(2, '0');
@@ -168,52 +298,31 @@
                 onChange(str);
                 setShow(false);
             };
-
             const monthNames = ["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь", "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"];
 
             return (
                 <div className={`relative ${className}`}>
-                    <div 
-                        className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 cursor-pointer hover:bg-slate-100 transition-colors h-11"
-                        onClick={() => setShow(!show)}
-                    >
+                    <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 cursor-pointer hover:bg-slate-100 transition-colors h-11" onClick={() => setShow(!show)}>
                         <CalendarIcon className="w-4 h-4 text-slate-500" />
-                        <span className={`text-sm ${!value ? 'text-slate-400' : 'text-slate-700'}`}>
-                            {value ? new Date(value).toLocaleDateString('ru-RU', {day: 'numeric', month: 'long'}) : 'Выберите дату'}
-                        </span>
+                        <span className={`text-sm ${!value ? 'text-slate-400' : 'text-slate-700'}`}>{value ? new Date(value).toLocaleDateString('ru-RU', {day: 'numeric', month: 'long'}) : 'Выберите дату'}</span>
                     </div>
-
                     {show && (
                         <>
-                            <div className="fixed inset-0 z-10" onClick={() => setShow(false)}></div>
-                            <div className="absolute top-full mt-2 left-0 z-20 bg-white rounded-xl shadow-xl border border-slate-100 p-4 w-64 animate-fade-in-up">
+                            <div className="fixed inset-0 z-20" onClick={() => setShow(false)}></div>
+                            <div className="absolute top-full mt-2 left-0 z-30 bg-white rounded-xl shadow-xl border border-slate-100 p-4 w-64 animate-fade-in-up">
                                 <div className="flex justify-between items-center mb-4">
                                     <button onClick={handlePrev} className="p-1 hover:bg-slate-100 rounded-lg"><ChevronLeft className="w-4 h-4" /></button>
                                     <span className="font-bold text-slate-700">{monthNames[viewDate.getMonth()]} {viewDate.getFullYear()}</span>
                                     <button onClick={handleNext} className="p-1 hover:bg-slate-100 rounded-lg"><ChevronRight className="w-4 h-4" /></button>
                                 </div>
-                                <div className="grid grid-cols-7 gap-1 text-center mb-2">
-                                    {['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].map(d => <span key={d} className="text-xs text-slate-400 font-medium">{d}</span>)}
-                                </div>
+                                <div className="grid grid-cols-7 gap-1 text-center mb-2">{['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].map(d => <span key={d} className="text-xs text-slate-400 font-medium">{d}</span>)}</div>
                                 <div className="grid grid-cols-7 gap-1">
                                     {Array(firstDayOfMonth(viewDate)).fill(null).map((_, i) => <div key={`empty-${i}`} />)}
                                     {Array(daysInMonth(viewDate)).fill(null).map((_, i) => {
                                         const day = i + 1;
                                         const isSelected = value && new Date(value).getDate() === day && new Date(value).getMonth() === viewDate.getMonth() && new Date(value).getFullYear() === viewDate.getFullYear();
                                         const isToday = new Date().getDate() === day && new Date().getMonth() === viewDate.getMonth() && new Date().getFullYear() === viewDate.getFullYear();
-                                        return (
-                                            <button 
-                                                key={day}
-                                                onClick={() => handleDayClick(day)}
-                                                className={`
-                                                    h-8 w-8 rounded-lg text-sm flex items-center justify-center transition-colors
-                                                    ${isSelected ? 'bg-slate-900 text-white' : 'hover:bg-slate-100 text-slate-700'}
-                                                    ${isToday && !isSelected ? 'text-blue-600 font-bold bg-blue-50' : ''}
-                                                `}
-                                            >
-                                                {day}
-                                            </button>
-                                        );
+                                        return <button key={day} onClick={() => handleDayClick(day)} className={`h-8 w-8 rounded-lg text-sm flex items-center justify-center transition-colors ${isSelected ? 'bg-slate-900 text-white' : 'hover:bg-slate-100 text-slate-700'} ${isToday && !isSelected ? 'text-blue-600 font-bold bg-blue-50' : ''}`}>{day}</button>;
                                     })}
                                 </div>
                             </div>
@@ -227,53 +336,25 @@
         const SimpleTimePicker = ({ value, onChange, className = "" }) => {
             const [show, setShow] = useState(false);
             const [h, m] = value ? value.split(':') : ['12', '00'];
-
             const hours = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0'));
-            const minutes = Array.from({ length: 12 }, (_, i) => (i * 5).toString().padStart(2, '0')); // 00, 05... 55
-
-            const handleSelect = (newH, newM) => {
-                onChange(`${newH}:${newM}`);
-            };
+            const minutes = Array.from({ length: 12 }, (_, i) => (i * 5).toString().padStart(2, '0'));
+            const handleSelect = (newH, newM) => onChange(`${newH}:${newM}`);
 
             return (
                 <div className={`relative ${className}`}>
-                    <div 
-                        className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 cursor-pointer hover:bg-slate-100 transition-colors h-11"
-                        onClick={() => setShow(!show)}
-                    >
+                    <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 cursor-pointer hover:bg-slate-100 transition-colors h-11" onClick={() => setShow(!show)}>
                         <Clock className="w-4 h-4 text-slate-500" />
-                        <span className={`text-sm ${!value ? 'text-slate-400' : 'text-slate-700'}`}>
-                            {value || 'Время'}
-                        </span>
+                        <span className={`text-sm ${!value ? 'text-slate-400' : 'text-slate-700'}`}>{value || 'Время'}</span>
                     </div>
-                    
                     {show && (
                         <>
-                            <div className="fixed inset-0 z-10" onClick={() => setShow(false)}></div>
-                            <div className="absolute top-full mt-2 left-0 z-20 bg-white rounded-xl shadow-xl border border-slate-100 p-0 w-48 animate-fade-in-up flex h-56 overflow-hidden">
-                                {/* Hours */}
+                            <div className="fixed inset-0 z-20" onClick={() => setShow(false)}></div>
+                            <div className="absolute top-full mt-2 left-0 z-30 bg-white rounded-xl shadow-xl border border-slate-100 p-0 w-48 animate-fade-in-up flex h-56 overflow-hidden">
                                 <div className="flex-1 overflow-y-auto scrollbar-hide border-r border-slate-100 p-2">
-                                    {hours.map(hour => (
-                                        <div 
-                                            key={hour}
-                                            onClick={() => handleSelect(hour, m)}
-                                            className={`text-center py-2 text-sm rounded-lg cursor-pointer mb-1 ${hour === h ? 'bg-slate-900 text-white font-bold' : 'text-slate-700 hover:bg-slate-50'}`}
-                                        >
-                                            {hour}
-                                        </div>
-                                    ))}
+                                    {hours.map(hour => <div key={hour} onClick={() => handleSelect(hour, m)} className={`text-center py-2 text-sm rounded-lg cursor-pointer mb-1 ${hour === h ? 'bg-slate-900 text-white font-bold' : 'text-slate-700 hover:bg-slate-50'}`}>{hour}</div>)}
                                 </div>
-                                {/* Minutes */}
                                 <div className="flex-1 overflow-y-auto scrollbar-hide p-2">
-                                    {minutes.map(minute => (
-                                        <div 
-                                            key={minute}
-                                            onClick={() => handleSelect(h, minute)}
-                                            className={`text-center py-2 text-sm rounded-lg cursor-pointer mb-1 ${minute === m ? 'bg-slate-900 text-white font-bold' : 'text-slate-700 hover:bg-slate-50'}`}
-                                        >
-                                            {minute}
-                                        </div>
-                                    ))}
+                                    {minutes.map(minute => <div key={minute} onClick={() => handleSelect(h, minute)} className={`text-center py-2 text-sm rounded-lg cursor-pointer mb-1 ${minute === m ? 'bg-slate-900 text-white font-bold' : 'text-slate-700 hover:bg-slate-50'}`}>{minute}</div>)}
                                 </div>
                             </div>
                         </>
@@ -282,50 +363,95 @@
             )
         }
 
-        // --- Основное Приложение ---
+        // --- Modal Component with Animation ---
+        const Modal = ({ isOpen, children, zIndex = "z-[60]", overlayClass = "", contentClass = "max-w-md" }) => {
+            const [isVisible, setIsVisible] = useState(isOpen);
+            const [isAnimatingOut, setIsAnimatingOut] = useState(false);
+
+            useEffect(() => {
+                if (isOpen) {
+                    setIsVisible(true);
+                    setIsAnimatingOut(false);
+                } else {
+                    if (isVisible) {
+                        setIsAnimatingOut(true);
+                        const timer = setTimeout(() => {
+                            setIsVisible(false);
+                            setIsAnimatingOut(false);
+                        }, 280); // Немного меньше времени анимации (0.3s), чтобы избежать мерцания
+                        return () => clearTimeout(timer);
+                    }
+                }
+            }, [isOpen, isVisible]);
+
+            if (!isVisible) return null;
+
+            return (
+                <div className={`fixed inset-0 bg-black/20 backdrop-blur-sm ${zIndex} flex items-center justify-center p-4 ${isAnimatingOut ? 'animate-fade-out' : 'animate-fade-in'} ${overlayClass}`}>
+                    <div className={`bg-white w-full rounded-2xl p-6 shadow-xl ${contentClass}`}>
+                        {children}
+                    </div>
+                </div>
+            );
+        };
+
+        // --- MAIN APP ---
 
         function ZenTutorApp() {
-            // --- Состояние (State) ---
             const [activeTab, setActiveTab] = useState('dashboard');
-            const [viewMode, setViewMode] = useState('list'); // 'list', 'week', 'month'
+            const [viewMode, setViewMode] = useState('list');
             const [currentDate, setCurrentDate] = useState(new Date());
             
-            // Данные (с сохранением в localStorage)
             const [students, setStudents] = useState(() => {
                 const saved = localStorage.getItem('zen_students');
                 return saved ? JSON.parse(saved) : [];
             });
-            
             const [lessons, setLessons] = useState(() => {
                 const saved = localStorage.getItem('zen_lessons');
                 return saved ? JSON.parse(saved) : [];
             });
+            // New State: Transactions
+            const [transactions, setTransactions] = useState(() => {
+                const saved = localStorage.getItem('zen_transactions');
+                return saved ? JSON.parse(saved) : [];
+            });
 
-            // Временные состояния для форм
-            const [isAddStudentOpen, setIsAddStudentOpen] = useState(false);
+            // Student Modal State (Add/Edit)
+            const [isStudentModalOpen, setIsStudentModalOpen] = useState(false);
+            const [editingStudent, setEditingStudent] = useState(null); // null = adding, object = editing
+            
+            // Student View Tab State
+            const [studentTab, setStudentTab] = useState('topics'); // topics, homework
+
             const [isAddLessonOpen, setIsAddLessonOpen] = useState(false);
             const [selectedStudentId, setSelectedStudentId] = useState(null);
             const [editingTopicId, setEditingTopicId] = useState(null); 
             const [tempTopic, setTempTopic] = useState("");
+            const [tempHW, setTempHW] = useState(""); // New: Temp Homework State
             const [rescheduleId, setRescheduleId] = useState(null);
             const [isReportOpen, setIsReportOpen] = useState(false);
+            // New State: Confirmation Modal
+            const [confirmation, setConfirmation] = useState({ isOpen: false, message: '', onConfirm: null });
 
-            // Данные новых сущностей
-            const [newStudent, setNewStudent] = useState({ name: '', subject: '', rate: '', notes: '' });
-            const [newLesson, setNewLesson] = useState({ studentId: '', date: '', time: '' });
+            const [studentForm, setStudentForm] = useState({ name: '', subject: '', rate: '', notes: '' });
+            // Added duration and repeat
+            const [newLesson, setNewLesson] = useState({ studentId: '', date: '', time: '', duration: '60', repeat: '1', burnOnCancel: false });
             const [rescheduleData, setRescheduleData] = useState({ date: '', time: '' });
 
-            // Эффект сохранения
             useEffect(() => {
                 localStorage.setItem('zen_students', JSON.stringify(students));
                 localStorage.setItem('zen_lessons', JSON.stringify(lessons));
-            }, [students, lessons]);
+                localStorage.setItem('zen_transactions', JSON.stringify(transactions));
+            }, [students, lessons, transactions]);
 
-            // --- Хелперы и Вычисления ---
+            // FIX: Added safety check for null/undefined ID to prevent crash on initial render
+            const getStudent = (id) => {
+                if (!id) return null;
+                return students.find(s => s.id.toString() === id.toString());
+            };
             
-            const getStudent = (id) => students.find(s => s.id.toString() === id.toString());
-
             const todayStr = new Date().toISOString().split('T')[0];
+            const fullMonthNames = ["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь", "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"];
 
             const stats = useMemo(() => {
                 const todayLessons = lessons.filter(l => l.date === todayStr && l.status === 'Planned').length;
@@ -335,78 +461,197 @@
                 return { todayLessons, totalBalance, needReschedule, debtorsCount };
             }, [lessons, students, todayStr]);
 
-            const monthNames = ["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь", "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"];
+            const isSameWeek = (d1, d2) => {
+                const getMon = d => {
+                    const dCopy = new Date(d);
+                    const day = dCopy.getDay(), diff = dCopy.getDate() - day + (day == 0 ? -6 : 1);
+                    return new Date(dCopy.setDate(diff)).setHours(0,0,0,0);
+                }
+                return getMon(new Date(d1)) === getMon(new Date(d2));
+            };
 
-            // --- Действия (Actions) ---
+            const getWeekRange = (date) => {
+                const d = new Date(date);
+                const day = d.getDay();
+                const diff = d.getDate() - day + (day === 0 ? -6 : 1); // adjust when day is sunday
+                const monday = new Date(d.setDate(diff));
+                const sunday = new Date(monday);
+                sunday.setDate(monday.getDate() + 6);
+                
+                const opts = { day: 'numeric', month: 'short' };
+                return `${monday.toLocaleDateString('ru-RU', opts)} - ${sunday.toLocaleDateString('ru-RU', opts)}`;
+            };
 
-            const handleAddStudent = () => {
-                if (!newStudent.name || !newStudent.rate) return;
-                const student = {
-                    id: Date.now(),
-                    name: newStudent.name,
-                    subject: newStudent.subject || 'Общий',
-                    rate: parseFloat(newStudent.rate),
-                    balance: 0,
-                    notes: newStudent.notes
-                };
-                setStudents([...students, student]);
-                setNewStudent({ name: '', subject: '', rate: '', notes: '' });
-                setIsAddStudentOpen(false);
+            const openAddStudentModal = () => {
+                setEditingStudent(null);
+                setStudentForm({ name: '', subject: '', rate: '', notes: '' });
+                setIsStudentModalOpen(true);
+            };
+
+            const openEditStudentModal = (student) => {
+                setEditingStudent(student);
+                setStudentForm({ name: student.name, subject: student.subject, rate: student.rate, notes: student.notes || '' });
+                setIsStudentModalOpen(true);
+            };
+
+            const handleSaveStudent = () => {
+                if (!studentForm.name || !studentForm.rate) return;
+                
+                if (editingStudent) {
+                    // Update existing
+                    setStudents(prev => prev.map(s => s.id === editingStudent.id ? { ...s, ...studentForm, rate: parseFloat(studentForm.rate) } : s));
+                } else {
+                    // Create new
+                    const student = {
+                        id: Date.now(),
+                        name: studentForm.name,
+                        subject: studentForm.subject || 'Общий',
+                        rate: parseFloat(studentForm.rate),
+                        balance: 0,
+                        notes: studentForm.notes
+                    };
+                    setStudents([...students, student]);
+                }
+                setIsStudentModalOpen(false);
+            };
+
+            const handleDeleteStudent = (id) => {
+                setConfirmation({
+                    isOpen: true,
+                    message: "Вы уверены? Это удалит ученика, все его уроки и историю.",
+                    onConfirm: () => {
+                        setStudents(prev => prev.filter(s => s.id !== id));
+                        setLessons(prev => prev.filter(l => l.studentId.toString() !== id.toString()));
+                        setTransactions(prev => prev.filter(t => t.studentId.toString() !== id.toString()));
+                        setSelectedStudentId(null);
+                        setConfirmation({ isOpen: false, message: '', onConfirm: null });
+                    }
+                });
             };
 
             const handleAddLesson = () => {
                 if (!newLesson.studentId || !newLesson.date || !newLesson.time) return;
-                const lesson = {
-                    id: Date.now(),
-                    studentId: newLesson.studentId,
-                    date: newLesson.date,
-                    time: newLesson.time,
-                    status: 'Planned',
-                    topic: ''
-                };
-                setLessons([...lessons, lesson]);
-                setNewLesson({ studentId: '', date: '', time: '' });
+                
+                const lessonsToAdd = [];
+                const repeatCount = parseInt(newLesson.repeat) || 1;
+                const startDate = new Date(newLesson.date);
+
+                for (let i = 0; i < repeatCount; i++) {
+                    const currentLessonDate = new Date(startDate);
+                    currentLessonDate.setDate(startDate.getDate() + (i * 7));
+                    const dateStr = currentLessonDate.toISOString().split('T')[0];
+
+                    lessonsToAdd.push({
+                        id: Date.now() + i,
+                        studentId: newLesson.studentId,
+                        date: dateStr,
+                        time: newLesson.time,
+                        duration: newLesson.duration || 60,
+                        status: 'Planned',
+                        topic: '',
+                        homework: '', // New Field
+                        hwStatus: false, // New Field
+                        burnOnCancel: newLesson.burnOnCancel || false
+                    });
+                }
+                
+                setLessons([...lessons, ...lessonsToAdd]);
+                setNewLesson({ studentId: '', date: '', time: '', duration: '60', repeat: '1', burnOnCancel: false });
                 setIsAddLessonOpen(false);
             };
 
-            const updateLessonStatus = (id, newStatus, topic = '') => {
-                setLessons(prev => prev.map(l => {
-                    if (l.id === id) {
-                        return { ...l, status: newStatus, topic: topic || l.topic };
+            const handleDeleteLesson = (lessonId) => {
+                setConfirmation({
+                    isOpen: true,
+                    message: "Удалить этот урок?",
+                    onConfirm: () => {
+                        setLessons(prev => prev.filter(l => l.id !== lessonId));
+                        setConfirmation({ isOpen: false, message: '', onConfirm: null });
                     }
+                });
+            };
+
+            // NEW: Toggle homework status
+            const toggleHomework = (lessonId) => {
+                setLessons(prev => prev.map(l => {
+                    if (l.id === lessonId) return { ...l, hwStatus: !l.hwStatus };
                     return l;
                 }));
+            };
 
+            const updateLessonStatus = (id, newStatus, topic = '', homework = '') => {
+                setLessons(prev => prev.map(l => {
+                    if (l.id === id) return { ...l, status: newStatus, topic: topic || l.topic, homework: homework || l.homework };
+                    return l;
+                }));
+                
+                const lesson = lessons.find(l => l.id === id);
+                if (!lesson) return;
+                const student = getStudent(lesson.studentId);
+                if (!student) return;
+
+                // If marked completed, deduct balance and log transaction
                 if (newStatus === 'Completed') {
-                    const lesson = lessons.find(l => l.id === id);
-                    if (lesson) {
-                        setStudents(prev => prev.map(s => {
-                            if (s.id.toString() === lesson.studentId.toString()) {
-                                return { ...s, balance: s.balance - s.rate };
-                            }
-                            return s;
-                        }));
-                    }
+                    setStudents(prev => prev.map(s => {
+                        if (s.id.toString() === lesson.studentId.toString()) return { ...s, balance: s.balance - s.rate };
+                        return s;
+                    }));
+                    // Log charge
+                    const newTransaction = {
+                        id: Date.now(),
+                        studentId: student.id,
+                        amount: -student.rate,
+                        date: new Date().toISOString(),
+                        type: 'charge',
+                        note: `Урок ${lesson.date}`
+                    };
+                    setTransactions(prev => [newTransaction, ...prev]);
                 }
+                // If Cancelled by Student AND burnOnCancel is active
+                else if (newStatus === 'Cancelled_Student' && lesson.burnOnCancel) {
+                    setStudents(prev => prev.map(s => {
+                        if (s.id.toString() === lesson.studentId.toString()) return { ...s, balance: s.balance - s.rate };
+                        return s;
+                    }));
+                    // Log charge
+                    const newTransaction = {
+                        id: Date.now(),
+                        studentId: student.id,
+                        amount: -student.rate,
+                        date: new Date().toISOString(),
+                        type: 'charge',
+                        note: `Штраф за отмену ${lesson.date}`
+                    };
+                    setTransactions(prev => [newTransaction, ...prev]);
+                }
+
                 setEditingTopicId(null);
                 setTempTopic("");
+                setTempHW("");
             };
 
             const handlePayment = (studentId, amount) => {
                 const val = parseFloat(amount);
                 if (isNaN(val) || val === 0) return;
-                setStudents(prev => prev.map(s => 
-                    s.id === studentId ? { ...s, balance: s.balance + val } : s
-                ));
+                
+                setStudents(prev => prev.map(s => s.id === studentId ? { ...s, balance: s.balance + val } : s));
+                
+                // Log payment or correction
+                const isCorrection = val < 0;
+                const newTransaction = {
+                    id: Date.now(),
+                    studentId: studentId,
+                    amount: val,
+                    date: new Date().toISOString(),
+                    type: isCorrection ? 'correction' : 'payment',
+                    note: isCorrection ? 'Ручное списание' : 'Пополнение'
+                };
+                setTransactions(prev => [newTransaction, ...prev]);
             };
 
             const handleReschedule = () => {
                 if (!rescheduleId || !rescheduleData.date || !rescheduleData.time) return;
-                setLessons(prev => prev.map(l => 
-                    l.id === rescheduleId 
-                        ? { ...l, status: 'Planned', date: rescheduleData.date, time: rescheduleData.time } 
-                        : l
-                ));
+                setLessons(prev => prev.map(l => l.id === rescheduleId ? { ...l, status: 'Planned', date: rescheduleData.date, time: rescheduleData.time } : l));
                 setRescheduleId(null);
                 setRescheduleData({ date: '', time: '' });
             };
@@ -414,7 +659,6 @@
             const downloadReport = () => {
                 const reportElement = document.getElementById('report-card');
                 if (!reportElement) return;
-
                 html2canvas(reportElement, { scale: 2 }).then(canvas => {
                     const link = document.createElement('a');
                     link.download = `Отчет_${getStudent(selectedStudentId).name}_${new Date().toLocaleDateString()}.png`;
@@ -423,7 +667,6 @@
                 });
             };
 
-            // --- Навигация календаря ---
             const nextDatePeriod = () => {
                 const d = new Date(currentDate);
                 if (viewMode === 'month') d.setMonth(d.getMonth() + 1);
@@ -437,20 +680,18 @@
                 setCurrentDate(d);
             };
 
-            // --- Вкладки (Views) ---
+            // --- VIEW RENDERERS ---
 
             const renderMonthView = () => {
                 const year = currentDate.getFullYear();
                 const month = currentDate.getMonth();
                 const daysInMonth = new Date(year, month + 1, 0).getDate();
-                const firstDay = new Date(year, month, 1).getDay(); // 0Sun
-                const startOffset = firstDay === 0 ? 6 : firstDay - 1; // Mon=0
+                const firstDay = new Date(year, month, 1).getDay();
+                const startOffset = firstDay === 0 ? 6 : firstDay - 1;
 
                 return (
                     <div className="animate-fade-in">
-                        <div className="grid grid-cols-7 gap-1 mb-2 text-center text-xs font-bold text-slate-400 uppercase">
-                            {['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].map(d => <div key={d}>{d}</div>)}
-                        </div>
+                        <div className="grid grid-cols-7 gap-1 mb-2 text-center text-xs font-bold text-slate-400 uppercase">{['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].map(d => <div key={d}>{d}</div>)}</div>
                         <div className="grid grid-cols-7 gap-1">
                             {Array(startOffset).fill(null).map((_, i) => <div key={`empty-${i}`} className="h-24 md:h-32 bg-slate-50/50 rounded-xl" />)}
                             {Array(daysInMonth).fill(null).map((_, i) => {
@@ -458,25 +699,17 @@
                                 const dateStr = `${year}-${(month+1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
                                 const daysLessons = lessons.filter(l => l.date === dateStr);
                                 const isToday = new Date().toDateString() === new Date(year, month, day).toDateString();
-
                                 return (
                                     <div key={day} className={`h-24 md:h-32 bg-white border border-slate-100 rounded-xl p-1 overflow-y-auto scrollbar-hide ${isToday ? 'ring-2 ring-blue-100' : ''}`}>
                                         <div className={`text-xs font-bold mb-1 text-center ${isToday ? 'text-blue-600' : 'text-slate-400'}`}>{day}</div>
                                         <div className="space-y-1">
-                                            {daysLessons.map(l => {
-                                                const s = getStudent(l.studentId);
-                                                const colors = {
-                                                    'Planned': 'bg-blue-50 text-blue-700',
-                                                    'Completed': 'bg-emerald-50 text-emerald-700',
-                                                    'Cancelled_Tutor': 'bg-amber-50 text-amber-700',
-                                                    'Cancelled_Student': 'bg-slate-100 text-slate-500',
-                                                };
-                                                return (
-                                                    <div key={l.id} className={`text-[9px] md:text-[10px] p-1 rounded leading-tight truncate ${colors[l.status]}`}>
-                                                        {l.time} {s?.name}
-                                                    </div>
-                                                );
-                                            })}
+                                            {daysLessons.map(l => (
+                                                <div key={l.id} className={`text-[9px] md:text-[10px] p-1 rounded leading-tight truncate ${{
+                                                    'Planned': 'bg-blue-50 text-blue-700', 'Completed': 'bg-emerald-50 text-emerald-700', 'Cancelled_Tutor': 'bg-amber-50 text-amber-700', 'Cancelled_Student': 'bg-slate-100 text-slate-500'
+                                                }[l.status]}`}>
+                                                    {l.time} {getStudent(l.studentId)?.name}
+                                                </div>
+                                            ))}
                                         </div>
                                     </div>
                                 );
@@ -494,11 +727,7 @@
                     return new Date(dCopy.setDate(diff));
                 };
                 const monday = getMonday(currentDate);
-                const weekDays = Array.from({length: 7}, (_, i) => {
-                    const d = new Date(monday);
-                    d.setDate(monday.getDate() + i);
-                    return d;
-                });
+                const weekDays = Array.from({length: 7}, (_, i) => { const d = new Date(monday); d.setDate(monday.getDate() + i); return d; });
 
                 return (
                     <div className="grid grid-cols-2 md:grid-cols-7 gap-2 animate-fade-in">
@@ -506,7 +735,6 @@
                             const dateStr = d.toISOString().split('T')[0];
                             const daysLessons = lessons.filter(l => l.date === dateStr).sort((a,b) => a.time.localeCompare(b.time));
                             const isToday = new Date().toDateString() === d.toDateString();
-                            
                             return (
                                 <div key={i} className="min-h-[200px] md:min-h-[400px] bg-white border border-slate-100 rounded-xl p-2 flex flex-col">
                                     <div className={`text-center border-b border-slate-50 pb-2 mb-2 ${isToday ? 'text-blue-600' : 'text-slate-500'}`}>
@@ -514,21 +742,19 @@
                                         <div className="text-lg font-bold">{d.getDate()}</div>
                                     </div>
                                     <div className="flex-1 space-y-2">
-                                        {daysLessons.map(l => {
-                                            const s = getStudent(l.studentId);
-                                            const colors = {
-                                                'Planned': 'border-l-blue-500 bg-blue-50',
-                                                'Completed': 'border-l-emerald-500 bg-emerald-50',
-                                                'Cancelled_Tutor': 'border-l-amber-500 bg-amber-50',
-                                                'Cancelled_Student': 'border-l-slate-400 bg-slate-50',
-                                            };
-                                            return (
-                                                <div key={l.id} className={`p-2 rounded border-l-2 text-xs ${colors[l.status]}`}>
-                                                    <div className="font-bold">{l.time}</div>
-                                                    <div className="truncate">{s?.name}</div>
+                                        {daysLessons.map(l => (
+                                            <div key={l.id} className={`p-2 rounded border-l-2 text-xs ${{
+                                                'Planned': 'border-l-blue-500 bg-blue-50', 'Completed': 'border-l-emerald-500 bg-emerald-50', 'Cancelled_Tutor': 'border-l-amber-500 bg-amber-50', 'Cancelled_Student': 'border-l-slate-400 bg-slate-50'
+                                            }[l.status]}`}>
+                                                <div className="font-bold flex justify-between items-center mb-1.5 gap-2">
+                                                    <span className="whitespace-nowrap">{l.time}</span>
+                                                    <span className="opacity-50 text-[10px] whitespace-nowrap">{l.duration}м</span>
                                                 </div>
-                                            );
-                                        })}
+                                                <div className="truncate text-slate-700 font-medium" title={getStudent(l.studentId)?.name}>
+                                                    {getStudent(l.studentId)?.name}
+                                                </div>
+                                            </div>
+                                        ))}
                                         {daysLessons.length === 0 && <div className="text-center text-slate-300 text-[10px] mt-4">-</div>}
                                     </div>
                                 </div>
@@ -541,85 +767,84 @@
             const renderListView = () => {
                 const sortedLessons = [...lessons].sort((a, b) => new Date(b.date + 'T' + b.time) - new Date(a.date + 'T' + a.time));
                 
-                if (students.length === 0) {
-                    return (
-                        <div className="text-center py-10">
-                            <p className="text-slate-400 mb-4">Начните с добавления первого ученика</p>
-                            <Button onClick={() => { setActiveTab('students'); setIsAddStudentOpen(true); }}>
-                                <Plus className="w-4 h-4" /> Добавить ученика
-                            </Button>
-                        </div>
-                    );
-                }
+                if (students.length === 0) return (
+                    <div className="text-center py-10">
+                        <p className="text-slate-400 mb-4">Начните с добавления первого ученика</p>
+                        <Button onClick={() => { setActiveTab('students'); openAddStudentModal(); }} className="mx-auto"><Plus className="w-4 h-4" /> Добавить ученика</Button>
+                    </div>
+                );
                 
-                if (sortedLessons.length === 0) {
-                    return (
-                        <div className="text-center text-slate-400 py-12 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
-                            Нет запланированных или прошедших занятий
-                        </div>
-                    );
-                }
+                if (sortedLessons.length === 0) return <div className="text-center text-slate-400 py-12 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">Нет запланированных или прошедших занятий</div>;
 
                 return (
                     <div className="space-y-4 animate-fade-in">
-                        {sortedLessons.map(lesson => {
+                        {sortedLessons.map((lesson, idx) => {
                             const student = getStudent(lesson.studentId);
                             if (!student) return null; 
-                            
                             const isEditing = editingTopicId === lesson.id;
+                            
+                            // Stagger animation for initial load
+                            const style = { animationDelay: `${idx * 0.05}s` };
 
                             return (
-                                <Card key={lesson.id} className="flex flex-col md:flex-row md:items-center justify-between gap-4 py-4 px-5">
+                                <Card key={lesson.id} className="flex flex-col md:flex-row md:items-start justify-between gap-4 py-4 px-5 group relative animate-fade-in transition-all duration-300" style={style}>
                                     <div className="flex items-start gap-4">
-                                        <div className="flex flex-col items-center min-w-[60px] text-slate-500">
-                                            <span className="font-bold text-lg text-slate-800">
-                                                {new Date(lesson.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}
-                                            </span>
-                                            <span className="text-xs">{lesson.time}</span>
+                                        <div className="flex flex-col items-center min-w-[60px] text-slate-500 text-center">
+                                            <span className="font-bold text-lg text-slate-800 leading-tight">{new Date(lesson.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}</span>
+                                            <span className="text-xs font-medium mt-0.5">{lesson.time}</span>
+                                            <span className="text-[10px] text-slate-400 mt-1">{lesson.duration || 60} мин</span>
                                         </div>
-                                        <div>
+                                        <div className="flex-1">
                                             <h3 className="font-semibold text-slate-800">{student.name}</h3>
                                             <p className="text-sm text-slate-500">{student.subject} • {student.rate} ₽</p>
-                                            {lesson.topic && <p className="text-sm mt-1 text-slate-600 bg-slate-50 inline-block px-2 py-0.5 rounded">Тема: {lesson.topic}</p>}
+                                            
+                                            <div className="mt-1.5 flex flex-col gap-1 items-start">
+                                                {lesson.topic && (
+                                                    <div className="text-xs text-slate-600 bg-slate-100 px-2 py-1 rounded-md flex items-center gap-1.5">
+                                                        <Book className="w-3 h-3 text-slate-400"/>
+                                                        <span className="font-medium">Тема:</span> {lesson.topic}
+                                                    </div>
+                                                )}
+                                                {lesson.homework && (
+                                                    <div className="text-xs text-slate-600 bg-slate-100 px-2 py-1 rounded-md flex items-center gap-1.5">
+                                                         <BookOpen className="w-3 h-3 text-slate-400"/>
+                                                         <span className="font-medium">ДЗ:</span> {lesson.homework}
+                                                    </div>
+                                                )}
+                                            </div>
+
                                             <div className="mt-2 md:hidden"><Badge status={lesson.status} /></div>
                                         </div>
                                     </div>
-
-                                    <div className="flex flex-col items-end gap-2">
-                                        <div className="hidden md:block mb-2">
+                                    
+                                    <div className="flex flex-col items-end gap-2 w-full md:w-auto">
+                                        <div className="hidden md:block mb-2 flex items-center gap-2">
                                             <Badge status={lesson.status} />
+                                            {/* Delete Lesson Button */}
+                                            <button onClick={() => handleDeleteLesson(lesson.id)} className="text-slate-300 hover:text-rose-500 transition-colors p-1" title="Удалить урок"><X className="w-4 h-4" /></button>
                                         </div>
-                                        
-                                        {lesson.status === 'Planned' && !isEditing && (
-                                            <div className="flex gap-2 w-full md:w-auto">
-                                                <Button variant="success" className="flex-1 md:flex-none text-xs" onClick={() => setEditingTopicId(lesson.id)}>
-                                                    <Check className="w-3 h-3" /> Проведено
-                                                </Button>
-                                                <Button variant="danger" className="flex-1 md:flex-none text-xs" onClick={() => updateLessonStatus(lesson.id, 'Cancelled_Tutor')}>
-                                                    Моя отмена
-                                                </Button>
-                                                <Button variant="secondary" className="flex-1 md:flex-none text-xs" onClick={() => updateLessonStatus(lesson.id, 'Cancelled_Student')}>
-                                                    Слив
-                                                </Button>
-                                            </div>
-                                        )}
 
-                                        {isEditing && (
-                                            <div className="flex gap-2 items-center w-full animate-fade-in-up">
-                                                <input 
-                                                    type="text" 
-                                                    placeholder="Какая тема пройдена?" 
-                                                    className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-1 text-sm w-full md:w-64 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                                                    value={tempTopic}
-                                                    onChange={(e) => setTempTopic(e.target.value)}
-                                                    autoFocus
-                                                />
-                                                <Button variant="success" onClick={() => updateLessonStatus(lesson.id, 'Completed', tempTopic)}>
-                                                    ОК
-                                                </Button>
-                                                <Button variant="ghost" onClick={() => { setEditingTopicId(null); setTempTopic(""); }}>
-                                                    <X className="w-4 h-4" />
-                                                </Button>
+                                        {/* Анимация переключения: Кнопки vs Поля ввода */}
+                                        {lesson.status === 'Planned' && (
+                                            <div className="w-full">
+                                                <SmoothCollapse isOpen={!isEditing}>
+                                                    <div className="flex gap-2 w-full md:w-auto pb-1 justify-end">
+                                                        <Button variant="success" className="flex-1 md:flex-none text-xs" onClick={() => { setEditingTopicId(lesson.id); setTempTopic(lesson.topic || ""); setTempHW(lesson.homework || ""); }}><Check className="w-3 h-3" /> Проведено</Button>
+                                                        <Button variant="danger" className="flex-1 md:flex-none text-xs" onClick={() => updateLessonStatus(lesson.id, 'Cancelled_Tutor')}>Моя отмена</Button>
+                                                        <Button variant="secondary" className="flex-1 md:flex-none text-xs" onClick={() => updateLessonStatus(lesson.id, 'Cancelled_Student')}>Слив</Button>
+                                                    </div>
+                                                </SmoothCollapse>
+                                                
+                                                <SmoothCollapse isOpen={isEditing}>
+                                                    <div className="flex flex-col gap-2 w-full bg-slate-50 p-3 rounded-xl border border-slate-200 mt-2">
+                                                        <input type="text" placeholder="Какая тема пройдена?" className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm w-full focus:outline-none focus:ring-2 focus:ring-emerald-500" value={tempTopic} onChange={(e) => setTempTopic(e.target.value)} autoFocus />
+                                                        <input type="text" placeholder="Домашнее задание..." className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm w-full focus:outline-none focus:ring-2 focus:ring-blue-500" value={tempHW} onChange={(e) => setTempHW(e.target.value)} />
+                                                        <div className="flex gap-2 justify-end mt-1">
+                                                            <Button variant="ghost" className="text-xs" onClick={() => { setEditingTopicId(null); setTempTopic(""); setTempHW(""); }}>Отмена</Button>
+                                                            <Button variant="success" className="text-xs" onClick={() => updateLessonStatus(lesson.id, 'Completed', tempTopic, tempHW)}>Сохранить</Button>
+                                                        </div>
+                                                    </div>
+                                                </SmoothCollapse>
                                             </div>
                                         )}
                                     </div>
@@ -630,315 +855,297 @@
                 );
             };
 
-            const renderDashboard = () => {
-                return (
-                    <div className="space-y-8 animate-fade-in" key="dashboard">
-                        {/* Блок статистики */}
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <Card className="flex flex-col items-center justify-center py-8">
-                                <div className="bg-blue-50 p-3 rounded-full mb-3">
-                                    <CalendarIcon className="w-6 h-6 text-blue-600" />
-                                </div>
-                                <span className="text-3xl font-bold text-slate-800">{stats.todayLessons}</span>
-                                <span className="text-slate-500 text-sm">Уроков сегодня</span>
-                            </Card>
-                            <Card className="flex flex-col items-center justify-center py-8 relative">
-                                <div className={`${stats.totalBalance >= 0 ? 'bg-emerald-50' : 'bg-rose-50'} p-3 rounded-full mb-3`}>
-                                    <Wallet className={`w-6 h-6 ${stats.totalBalance >= 0 ? 'text-emerald-600' : 'text-rose-600'}`} />
-                                </div>
-                                <span className={`text-3xl font-bold ${stats.totalBalance >= 0 ? 'text-emerald-700' : 'text-rose-600'}`}>
-                                    {stats.totalBalance} ₽
-                                </span>
-                                <span className="text-slate-500 text-sm">Общий баланс</span>
-                                {stats.debtorsCount > 0 && (
-                                    <span className="absolute top-4 right-4 bg-rose-100 text-rose-600 text-[10px] font-bold px-2 py-1 rounded-full">
-                                        Должников: {stats.debtorsCount}
-                                    </span>
-                                )}
-                            </Card>
-                            <Card className="flex flex-col items-center justify-center py-8">
-                                <div className="bg-amber-50 p-3 rounded-full mb-3">
-                                    <RefreshCw className="w-6 h-6 text-amber-600" />
-                                </div>
-                                <span className="text-3xl font-bold text-slate-800">{stats.needReschedule}</span>
-                                <span className="text-slate-500 text-sm">Ждут отработки</span>
-                            </Card>
-                        </div>
+            const renderDashboard = () => (
+                <div className="space-y-8 animate-fade-in" key="dashboard">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <Card className="flex flex-col items-center justify-center py-8">
+                            <div className="bg-blue-50 p-3 rounded-full mb-3"><CalendarIcon className="w-6 h-6 text-blue-600" /></div>
+                            <span className="text-3xl font-bold text-slate-800">{stats.todayLessons}</span>
+                            <span className="text-slate-500 text-sm">Уроков сегодня</span>
+                        </Card>
+                        <Card className="flex flex-col items-center justify-center py-8 relative">
+                            <div className={`${stats.totalBalance >= 0 ? 'bg-emerald-50' : 'bg-rose-50'} p-3 rounded-full mb-3`}><Wallet className={`w-6 h-6 ${stats.totalBalance >= 0 ? 'text-emerald-600' : 'text-rose-600'}`} /></div>
+                            <span className={`text-3xl font-bold ${stats.totalBalance >= 0 ? 'text-emerald-700' : 'text-rose-600'}`}>{stats.totalBalance} ₽</span>
+                            <span className="text-slate-500 text-sm">Общий баланс</span>
+                            {stats.debtorsCount > 0 && <span className="absolute top-4 right-4 bg-rose-100 text-rose-600 text-[10px] font-bold px-2 py-1 rounded-full">Должников: {stats.debtorsCount}</span>}
+                        </Card>
+                        <Card className="flex flex-col items-center justify-center py-8">
+                            <div className="bg-amber-50 p-3 rounded-full mb-3"><RefreshCw className="w-6 h-6 text-amber-600" /></div>
+                            <span className="text-3xl font-bold text-slate-800">{stats.needReschedule}</span>
+                            <span className="text-slate-500 text-sm">Ждут отработки</span>
+                        </Card>
+                    </div>
 
-                        {/* Блок Расписания */}
-                        <div className="space-y-4">
-                             <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-4">
-                                <div className="flex items-center gap-4 w-full md:w-auto">
-                                    <h2 className="text-xl font-bold text-slate-800">Расписание</h2>
-                                    {/* View Switcher */}
-                                    <div className="flex bg-white p-1 rounded-xl border border-slate-200">
-                                        <button onClick={() => setViewMode('list')} className={`p-2 rounded-lg transition-all ${viewMode === 'list' ? 'bg-slate-100 text-slate-900' : 'text-slate-400 hover:text-slate-600'}`} title="Список"><LayoutList className="w-4 h-4"/></button>
-                                        <button onClick={() => setViewMode('week')} className={`p-2 rounded-lg transition-all ${viewMode === 'week' ? 'bg-slate-100 text-slate-900' : 'text-slate-400 hover:text-slate-600'}`} title="Неделя"><Columns className="w-4 h-4"/></button>
-                                        <button onClick={() => setViewMode('month')} className={`p-2 rounded-lg transition-all ${viewMode === 'month' ? 'bg-slate-100 text-slate-900' : 'text-slate-400 hover:text-slate-600'}`} title="Месяц"><LayoutGrid className="w-4 h-4"/></button>
-                                    </div>
-                                </div>
-
-                                <div className="flex items-center gap-2 w-full md:w-auto justify-between md:justify-end">
-                                    {viewMode !== 'list' && (
-                                        <div className="flex items-center gap-2 mr-2">
-                                            <button onClick={prevDatePeriod} className="p-2 hover:bg-white rounded-full"><ChevronLeft className="w-4 h-4"/></button>
-                                            <span className="font-bold text-sm w-32 text-center">
-                                                {viewMode === 'month' 
-                                                    ? `${monthNames[currentDate.getMonth()]} ${currentDate.getFullYear()}` 
-                                                    : 'Эта неделя'}
-                                            </span>
-                                            <button onClick={nextDatePeriod} className="p-2 hover:bg-white rounded-full"><ChevronRight className="w-4 h-4"/></button>
-                                        </div>
-                                    )}
-                                    <Button onClick={() => setIsAddLessonOpen(true)} disabled={students.length === 0}>
-                                        <Plus className="w-4 h-4" /> <span className="hidden md:inline">Создать урок</span>
-                                    </Button>
+                    <div className="space-y-4">
+                            <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-4">
+                            <div className="flex items-center gap-4 w-full md:w-auto">
+                                <h2 className="text-xl font-bold text-slate-800">Расписание</h2>
+                                <div className="flex bg-white p-1 rounded-xl border border-slate-200">
+                                    <button onClick={() => setViewMode('list')} className={`p-2 rounded-lg transition-all ${viewMode === 'list' ? 'bg-slate-100 text-slate-900' : 'text-slate-400 hover:text-slate-600'}`} title="Список"><LayoutList className="w-4 h-4"/></button>
+                                    <button onClick={() => setViewMode('week')} className={`p-2 rounded-lg transition-all ${viewMode === 'week' ? 'bg-slate-100 text-slate-900' : 'text-slate-400 hover:text-slate-600'}`} title="Неделя"><Columns className="w-4 h-4"/></button>
+                                    <button onClick={() => setViewMode('month')} className={`p-2 rounded-lg transition-all ${viewMode === 'month' ? 'bg-slate-100 text-slate-900' : 'text-slate-400 hover:text-slate-600'}`} title="Месяц"><LayoutGrid className="w-4 h-4"/></button>
                                 </div>
                             </div>
-                            
+                            <div className="flex items-center gap-2 w-full md:w-auto justify-between md:justify-end">
+                                {viewMode !== 'list' && (
+                                    <div className="flex items-center gap-2 mr-2">
+                                        <button onClick={prevDatePeriod} className="p-2 hover:bg-white rounded-full"><ChevronLeft className="w-4 h-4"/></button>
+                                        <span className="font-bold text-sm w-32 text-center">
+                                            {viewMode === 'month' ? `${fullMonthNames[currentDate.getMonth()]} ${currentDate.getFullYear()}` : 
+                                             viewMode === 'week' && isSameWeek(currentDate, new Date()) ? 'Эта неделя' : 
+                                             viewMode === 'week' ? getWeekRange(currentDate) : 'Эта неделя'}
+                                        </span>
+                                        <button onClick={nextDatePeriod} className="p-2 hover:bg-white rounded-full"><ChevronRight className="w-4 h-4"/></button>
+                                    </div>
+                                )}
+                                <Button onClick={() => setIsAddLessonOpen(true)} disabled={students.length === 0}><Plus className="w-4 h-4" /> <span className="hidden md:inline">Создать урок</span></Button>
+                            </div>
+                        </div>
+                        {/* Wrapper div with key to trigger animation on viewMode change */}
+                        <div key={viewMode}>
                             {viewMode === 'list' && renderListView()}
                             {viewMode === 'week' && renderWeekView()}
                             {viewMode === 'month' && renderMonthView()}
                         </div>
                     </div>
-                );
-            };
-
-            const renderFinance = () => (
-                <div className="space-y-4 animate-fade-in" key="finance">
-                    <h2 className="text-xl font-bold text-slate-800 mb-6">Финансы учеников</h2>
-                    {students.length === 0 && <p className="text-slate-400">Список учеников пуст.</p>}
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {students.map(student => {
-                            const isDebtor = student.balance < 0;
-                            return (
-                                <Card key={student.id} className={`relative overflow-hidden ${isDebtor ? 'bg-rose-50/40 border-rose-100' : ''}`}>
-                                    <div className="flex justify-between items-start mb-4">
-                                        <div>
-                                            <h3 className="font-bold text-lg">{student.name}</h3>
-                                            <p className="text-slate-500 text-sm">{student.subject}</p>
-                                        </div>
-                                        <div className={`text-xl font-mono font-bold ${student.balance >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                                            {student.balance > 0 ? '+' : ''}{student.balance} ₽
-                                        </div>
-                                    </div>
-                                    
-                                    <div className="flex gap-2 items-center mt-4">
-                                        <div className="flex-1 relative">
-                                            <span className="absolute left-3 top-2 text-slate-400 text-sm">₽</span>
-                                            <input 
-                                                type="number" 
-                                                placeholder="Сумма"
-                                                className="w-full bg-slate-50 border border-slate-200 rounded-xl py-1.5 pl-7 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                                                id={`pay-${student.id}`}
-                                            />
-                                        </div>
-                                        <Button 
-                                            variant="secondary" 
-                                            className="text-sm bg-white hover:bg-slate-100"
-                                            onClick={() => {
-                                                const input = document.getElementById(`pay-${student.id}`);
-                                                handlePayment(student.id, input.value);
-                                                input.value = '';
-                                            }}
-                                        >
-                                            Внести
-                                        </Button>
-                                    </div>
-                                </Card>
-                            );
-                        })}
-                    </div>
                 </div>
             );
 
-            const renderRescheduling = () => {
-                const cancelledLessons = lessons.filter(l => l.status === 'Cancelled_Tutor');
-                
-                return (
-                    <div className="space-y-4 animate-fade-in" key="rescheduling">
-                        <h2 className="text-xl font-bold text-slate-800 mb-6">Требуют отработки</h2>
-                        {cancelledLessons.length === 0 ? (
-                            <div className="flex flex-col items-center justify-center py-12 text-slate-400">
-                                <Check className="w-12 h-12 text-emerald-200 mb-2" />
-                                <p>Все долги закрыты!</p>
-                            </div>
-                        ) : (
-                            cancelledLessons.map(lesson => {
-                                const student = getStudent(lesson.studentId);
-                                const isReschedulingThis = rescheduleId === lesson.id;
-
-                                return (
-                                    <Card key={lesson.id} className="border-l-4 border-l-amber-400">
-                                        <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-                                            <div>
-                                                <h3 className="font-bold text-slate-800">{student?.name}</h3>
-                                                <p className="text-sm text-slate-500">Не состоялся: {new Date(lesson.date).toLocaleDateString()}</p>
-                                            </div>
-                                            
-                                            {!isReschedulingThis ? (
-                                                <Button variant="primary" onClick={() => setRescheduleId(lesson.id)}>
-                                                    Назначить новую дату
-                                                </Button>
-                                            ) : (
-                                                <div className="flex flex-col md:flex-row gap-2 items-center bg-slate-50 p-2 rounded-xl w-full md:w-auto">
-                                                    <SimpleDatePicker 
-                                                        value={rescheduleData.date} 
-                                                        onChange={date => setRescheduleData({...rescheduleData, date})} 
-                                                        className="w-full md:w-auto"
-                                                    />
-                                                    <SimpleTimePicker
-                                                        value={rescheduleData.time}
-                                                        onChange={time => setRescheduleData({...rescheduleData, time})}
-                                                        className="w-full md:w-auto"
-                                                    />
-                                                    <Button variant="success" onClick={handleReschedule}>Сохранить</Button>
-                                                    <Button variant="ghost" onClick={() => setRescheduleId(null)}><X className="w-4 h-4"/></Button>
-                                                </div>
-                                            )}
+            const renderRescheduling = () => (
+                <div className="space-y-4 animate-fade-in" key="rescheduling">
+                    <h2 className="text-xl font-bold text-slate-800 mb-6">Требуют отработки</h2>
+                    {lessons.filter(l => l.status === 'Cancelled_Tutor').length === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-12 text-slate-400"><Check className="w-12 h-12 text-emerald-200 mb-2" /><p>Все долги закрыты!</p></div>
+                    ) : (
+                        lessons.filter(l => l.status === 'Cancelled_Tutor').map(lesson => (
+                            <Card key={lesson.id} className="border-l-4 border-l-amber-400">
+                                <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+                                    <div><h3 className="font-bold text-slate-800">{getStudent(lesson.studentId)?.name}</h3><p className="text-sm text-slate-500">Не состоялся: {new Date(lesson.date).toLocaleDateString()}</p></div>
+                                    {rescheduleId !== lesson.id ? (
+                                        <Button variant="primary" onClick={() => setRescheduleId(lesson.id)}>Назначить новую дату</Button>
+                                    ) : (
+                                        <div className="flex flex-col md:flex-row gap-2 items-center bg-slate-50 p-2 rounded-xl w-full md:w-auto">
+                                            <SimpleDatePicker value={rescheduleData.date} onChange={date => setRescheduleData({...rescheduleData, date})} className="w-full md:w-auto" />
+                                            <SimpleTimePicker value={rescheduleData.time} onChange={time => setRescheduleData({...rescheduleData, time})} className="w-full md:w-auto" />
+                                            <Button variant="success" onClick={handleReschedule}>Сохранить</Button>
+                                            <Button variant="ghost" onClick={() => setRescheduleId(null)}><X className="w-4 h-4"/></Button>
                                         </div>
-                                    </Card>
-                                )
-                            })
-                        )}
-                    </div>
-                );
-            };
+                                    )}
+                                </div>
+                            </Card>
+                        ))
+                    )}
+                </div>
+            );
 
             const renderStudents = () => {
+                // SINGLE STUDENT VIEW - DASHBOARD LAYOUT
                 if (selectedStudentId) {
                     const student = getStudent(selectedStudentId);
                     const studentLessons = lessons.filter(l => l.studentId.toString() === selectedStudentId.toString());
-                    const completedTopics = studentLessons
-                        .filter(l => l.status === 'Completed' && l.topic)
-                        .sort((a, b) => new Date(b.date) - new Date(a.date))
-                        .map(l => ({ date: l.date, topic: l.topic }));
-
-                    // Статистика для карусели
-                    const statsForStudent = {
-                        planned: studentLessons.filter(l => l.status === 'Planned').length,
-                        completed: studentLessons.filter(l => l.status === 'Completed').length,
-                        cancelledTutor: studentLessons.filter(l => l.status === 'Cancelled_Tutor').length,
-                        cancelledStudent: studentLessons.filter(l => l.status === 'Cancelled_Student').length,
-                    };
-
-                    const statsCarouselItems = [
-                        { label: 'Баланс', value: `${student.balance} ₽`, color: student.balance >= 0 ? 'text-emerald-600' : 'text-rose-600', bg: 'bg-white border-2 border-slate-100' },
-                        { label: 'Проведено', value: statsForStudent.completed, color: 'text-slate-700', bg: 'bg-emerald-50 border-2 border-emerald-100' },
-                        { label: 'Запланировано', value: statsForStudent.planned, color: 'text-blue-600', bg: 'bg-blue-50 border-2 border-blue-100' },
-                        { label: 'Мои отмены', value: statsForStudent.cancelledTutor, color: 'text-amber-600', bg: 'bg-amber-50 border-2 border-amber-100' },
-                        { label: 'Пропуски ученика', value: statsForStudent.cancelledStudent, color: 'text-slate-500', bg: 'bg-slate-100 border-2 border-slate-200' },
-                    ];
+                    const completedTopics = studentLessons.filter(l => l.status === 'Completed' && l.topic).sort((a, b) => new Date(b.date) - new Date(a.date)).map(l => ({ date: l.date, topic: l.topic }));
+                    
+                    // Logic for Homeworks: get all completed lessons with homework
+                    const homeworks = studentLessons
+                        .filter(l => l.status === 'Completed' && l.homework)
+                        .sort((a, b) => {
+                            // Sort: Pending first, then by date desc
+                            if (a.hwStatus === b.hwStatus) return new Date(b.date) - new Date(a.date);
+                            return a.hwStatus ? 1 : -1; 
+                        });
+                    
+                    // MISSING variable from previous turn, causing ReferenceError
+                    const studentTransactions = transactions.filter(t => t.studentId.toString() === selectedStudentId.toString());
 
                     return (
-                        <div className="animate-fade-in space-y-6" key="student-details">
-                            <div className="flex gap-2">
-                                <Button variant="ghost" onClick={() => setSelectedStudentId(null)} className="pl-0">
-                                    <ArrowLeft className="w-4 h-4" /> Назад
+                        <div className="animate-fade-in space-y-6 pb-20">
+                            {/* Header Actions */}
+                            <div className="flex items-center justify-between">
+                                <Button variant="ghost" onClick={() => setSelectedStudentId(null)} className="pl-0 gap-1 text-slate-500 hover:text-slate-800">
+                                    <ArrowLeft className="w-5 h-5" /> <span className="hidden sm:inline">Назад</span>
                                 </Button>
-                                <div className="flex-1"></div>
-                                <Button variant="secondary" className="text-xs" onClick={() => setIsReportOpen(true)}>
-                                    <Download className="w-4 h-4" /> Создать отчет
-                                </Button>
+                                <div className="flex gap-2">
+                                    <button onClick={() => setIsReportOpen(true)} title="Скачать отчет" className="p-2 text-slate-400 hover:text-blue-600 bg-white rounded-xl border border-slate-100 shadow-sm transition-colors"><Download className="w-4 h-4" /></button>
+                                    <button onClick={() => openEditStudentModal(student)} title="Редактировать" className="p-2 text-slate-400 hover:text-amber-600 bg-white rounded-xl border border-slate-100 shadow-sm transition-colors"><EditIcon className="w-4 h-4" /></button>
+                                    <button onClick={() => handleDeleteStudent(student.id)} title="Удалить" className="p-2 text-slate-400 hover:text-rose-600 bg-white rounded-xl border border-slate-100 shadow-sm transition-colors"><Trash2 className="w-4 h-4" /></button>
+                                </div>
                             </div>
 
-                            <Card className="border-l-4 border-l-blue-500 pb-0 overflow-hidden">
-                                <div className="flex justify-between items-start mb-6">
-                                    <div>
-                                        <h1 className="text-2xl font-bold text-slate-900">{student.name}</h1>
-                                        <p className="text-slate-500 text-lg">{student.subject}</p>
-                                    </div>
-                                    <div className="text-right">
-                                        <p className="text-sm text-slate-400">Ставка</p>
-                                        <p className="font-bold">{student.rate} ₽</p>
-                                    </div>
-                                </div>
+                            {/* GRID LAYOUT: Left (Profile/Notes) & Right (History) */}
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
                                 
-                                {/* Свайпаемая статистика */}
-                                <div className="-mx-6 px-6 overflow-x-auto flex gap-3 snap-x snap-mandatory scrollbar-hide pb-6">
-                                    {statsCarouselItems.map((stat, i) => (
-                                        <div key={i} className={`snap-center shrink-0 w-36 p-4 rounded-xl flex flex-col items-center justify-center ${stat.bg}`}>
-                                            <span className="text-[10px] uppercase tracking-wide text-slate-400 mb-1 text-center font-bold">{stat.label}</span>
-                                            <span className={`font-mono font-bold text-lg ${stat.color}`}>{stat.value}</span>
+                                {/* LEFT COLUMN: Profile & Notes */}
+                                <div className="space-y-6 lg:col-span-1">
+                                    {/* Profile Card */}
+                                    <Card className="flex flex-col items-center text-center py-6 gap-2">
+                                        <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center text-3xl font-bold text-slate-400 mb-2 uppercase border-4 border-slate-50 shadow-inner">
+                                            {student.name[0]}
                                         </div>
-                                    ))}
-                                </div>
-                            </Card>
+                                        <h1 className="text-2xl font-bold text-slate-900 leading-none">{student.name}</h1>
+                                        <p className="text-slate-500 font-medium">{student.subject}</p>
+                                        
+                                        <div className="w-full border-t border-slate-100 my-2"></div>
+                                        
+                                        <div className="flex justify-between w-full px-2">
+                                            <div className="text-left">
+                                                <div className="text-[10px] uppercase text-slate-400 font-bold tracking-wider">Баланс</div>
+                                                <div className={`text-xl font-mono font-bold ${student.balance >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                                                    {student.balance} ₽
+                                                </div>
+                                            </div>
+                                            <div className="text-right">
+                                                <div className="text-[10px] uppercase text-slate-400 font-bold tracking-wider">Ставка</div>
+                                                <div className="text-xl font-mono font-bold text-slate-700">{student.rate} ₽</div>
+                                            </div>
+                                        </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div className="space-y-4">
-                                    <h3 className="font-bold text-slate-700 flex items-center gap-2">
-                                        <BookOpen className="w-4 h-4" /> Пройденные темы
-                                    </h3>
-                                    <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
-                                        {completedTopics.length === 0 ? (
-                                            <p className="p-4 text-slate-400 text-sm">Пока нет завершенных уроков с темами.</p>
-                                        ) : (
-                                            <ul className="divide-y divide-slate-100">
-                                                {completedTopics.map((t, idx) => (
-                                                    <li key={idx} className="p-3 text-sm hover:bg-slate-50 flex justify-between">
-                                                        <span>{t.topic}</span>
-                                                        <span className="text-slate-400 text-xs">{new Date(t.date).toLocaleDateString()}</span>
-                                                    </li>
-                                                ))}
-                                            </ul>
-                                        )}
+                                        <div className="w-full mt-4">
+                                            <div className="relative">
+                                                <input 
+                                                    id="quick-pay"
+                                                    type="number" 
+                                                    placeholder="Пополнить..." 
+                                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 pl-3 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Enter') {
+                                                            handlePayment(student.id, e.target.value);
+                                                            e.target.value = '';
+                                                        }
+                                                    }}
+                                                />
+                                                <button 
+                                                    onClick={() => {
+                                                        const el = document.getElementById('quick-pay');
+                                                        handlePayment(student.id, el.value);
+                                                        el.value = '';
+                                                    }}
+                                                    className="absolute right-1 top-1 p-1 bg-white rounded-lg text-emerald-600 hover:bg-emerald-50 transition-colors border border-slate-100"
+                                                >
+                                                    <Plus className="w-4 h-4"/>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </Card>
+
+                                    {/* Sticky Notes Area - Always Visible */}
+                                    {/* Removed 'group' hover save icon logic, simplified */}
+                                    <div className="bg-yellow-50 rounded-2xl p-4 border border-yellow-100 shadow-sm relative group transform transition-transform hover:scale-[1.01] duration-300">
+                                        <div className="text-xs font-bold text-yellow-600 uppercase mb-2 flex items-center gap-1">
+                                            <EditIcon className="w-3 h-3"/> Заметки
+                                        </div>
+                                        <textarea 
+                                            className="w-full bg-transparent border-none resize-none focus:ring-0 text-sm text-slate-700 leading-relaxed h-40 notepad-lines" 
+                                            placeholder="Напишите заметку..." 
+                                            value={student.notes || ''} 
+                                            onChange={(e) => setStudents(prev => prev.map(s => s.id === student.id ? {...s, notes: e.target.value} : s))} 
+                                        />
+                                        <div className="absolute bottom-2 right-2 text-yellow-400 opacity-50">
+                                            <SaveIcon className="w-4 h-4"/>
+                                        </div>
                                     </div>
                                 </div>
 
-                                <div className="space-y-4">
-                                    <h3 className="font-bold text-slate-700 flex items-center gap-2">
-                                        <AlertCircle className="w-4 h-4" /> Заметки
-                                    </h3>
-                                    <textarea 
-                                        className="w-full h-40 p-4 rounded-2xl border border-slate-200 focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm leading-relaxed"
-                                        placeholder="Прогресс, проблемы, домашнее задание..."
-                                        value={student.notes || ''}
-                                        onChange={(e) => {
-                                            const val = e.target.value;
-                                            setStudents(prev => prev.map(s => s.id === student.id ? {...s, notes: val} : s));
-                                        }}
-                                    />
+                                {/* RIGHT COLUMN: Tabs and Lists (Natural Scroll) */}
+                                <div className="lg:col-span-2 space-y-4">
+                                    {/* Tabs */}
+                                    <div className="flex bg-slate-100 p-1 rounded-xl">
+                                        {['topics', 'homework', 'finance'].map(tab => (
+                                            <button
+                                                key={tab}
+                                                onClick={() => setStudentTab(tab)}
+                                                className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${studentTab === tab ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                            >
+                                                {{ topics: 'Темы', homework: 'Домашка', finance: 'История' }[tab]}
+                                            </button>
+                                        ))}
+                                    </div>
+
+                                    {/* Content Area - NO FIXED HEIGHT */}
+                                    {/* Added noTilt to disable 3D effect on scrollable area */}
+                                    <Card noTilt={true} className="overflow-hidden min-h-[300px] p-0">
+                                        {studentTab === 'topics' && (
+                                            <div>
+                                                {completedTopics.length === 0 ? <div className="p-12 text-center text-slate-400 text-sm">Пока нет завершенных уроков с темами.</div> : 
+                                                    <ul className="divide-y divide-slate-100">
+                                                        {completedTopics.map((t, idx) => (
+                                                            <li key={idx} className="p-4 text-sm hover:bg-slate-50 flex justify-between items-center group transition-colors">
+                                                                <span className="font-medium text-slate-700 mr-4">{t.topic}</span>
+                                                                <span className="text-slate-400 text-xs bg-slate-50 px-2 py-1 rounded-md whitespace-nowrap">{new Date(t.date).toLocaleDateString()}</span>
+                                                            </li>
+                                                        ))}
+                                                    </ul>
+                                                }
+                                            </div>
+                                        )}
+                                        {studentTab === 'homework' && (
+                                            <div>
+                                                {homeworks.length === 0 ? <div className="p-12 text-center text-slate-400 text-sm">Нет домашних заданий.</div> : 
+                                                    <ul className="divide-y divide-slate-100">
+                                                        {homeworks.map((l) => (
+                                                            <li key={l.id} className="p-4 text-sm flex items-start gap-3 hover:bg-slate-50 transition-colors group cursor-pointer" onClick={() => toggleHomework(l.id)}>
+                                                                <div className={`mt-0.5 w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${l.hwStatus ? 'bg-emerald-500 border-emerald-500' : 'border-slate-300 group-hover:border-blue-400'}`}>
+                                                                    {l.hwStatus && <Check className="w-3 h-3 text-white" />}
+                                                                </div>
+                                                                <div className="flex-1">
+                                                                    <div className={`font-medium transition-colors ${l.hwStatus ? 'text-slate-400 line-through' : 'text-slate-800'}`}>
+                                                                        {l.homework}
+                                                                    </div>
+                                                                    <div className="text-xs text-slate-400 mt-1">Задано: {new Date(l.date).toLocaleDateString()}</div>
+                                                                </div>
+                                                            </li>
+                                                        ))}
+                                                    </ul>
+                                                }
+                                            </div>
+                                        )}
+                                        {studentTab === 'finance' && (
+                                            <div>
+                                                {studentTransactions.length === 0 ? <div className="p-12 text-center text-slate-400 text-sm">История транзакций пуста.</div> : 
+                                                    <ul className="divide-y divide-slate-100">
+                                                        {studentTransactions.map((t) => (
+                                                            <li key={t.id} className="p-4 text-sm flex justify-between items-center hover:bg-slate-50 transition-colors">
+                                                                <div className="flex-1 truncate mr-4">
+                                                                    <div className={`font-bold ${t.type === 'payment' ? 'text-emerald-600' : t.type === 'correction' ? 'text-slate-500' : 'text-slate-700'}`}>
+                                                                        {t.type === 'payment' ? '+' : ''}{t.amount} ₽
+                                                                    </div>
+                                                                    <div className="text-[10px] text-slate-400 mt-0.5">{new Date(t.date).toLocaleDateString()} • {new Date(t.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
+                                                                </div>
+                                                                <div className="text-xs text-slate-500 text-right font-medium bg-slate-50 px-2 py-1 rounded-md whitespace-nowrap">{t.note || (t.type === 'payment' ? 'Пополнение' : 'Списание')}</div>
+                                                            </li>
+                                                        ))}
+                                                    </ul>
+                                                }
+                                            </div>
+                                        )}
+                                    </Card>
                                 </div>
                             </div>
                         </div>
                     );
                 }
 
+                // STUDENT LIST VIEW
                 return (
                     <div className="space-y-4 animate-fade-in" key="student-list">
-                        <div className="flex justify-between items-center mb-6">
+                        <div className="flex justify-between items-center mb-6 gap-4">
                             <h2 className="text-xl font-bold text-slate-800">Мои Ученики</h2>
-                            <Button onClick={() => setIsAddStudentOpen(true)}>
-                                <Plus className="w-4 h-4" /> Добавить
-                            </Button>
+                            <Button onClick={() => { setActiveTab('students'); openAddStudentModal(); }}><Plus className="w-4 h-4" /> Добавить</Button>
                         </div>
-
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {students.map(student => {
-                                const isDebtor = student.balance < 0;
+                                // Calculate pending homework count
+                                const pendingHW = lessons.filter(l => l.studentId.toString() === student.id.toString() && l.homework && !l.hwStatus).length;
                                 return (
-                                    <div 
-                                        key={student.id} 
-                                        onClick={() => setSelectedStudentId(student.id)}
-                                        className={`group bg-white p-5 rounded-2xl border transition-all cursor-pointer flex justify-between items-center
-                                            ${isDebtor ? 'border-rose-200 shadow-sm' : 'border-slate-100 hover:border-blue-200 hover:shadow-md'}
-                                        `}
-                                    >
+                                    <Card key={student.id} onClick={() => { setSelectedStudentId(student.id); setStudentTab('topics'); }} className="group flex justify-between items-center hover:border-blue-200 p-5">
                                         <div>
-                                            <h3 className="font-bold text-slate-800 group-hover:text-blue-700 transition-colors">{student.name}</h3>
-                                            <div className="flex items-center gap-2 mt-1">
-                                                <p className="text-sm text-slate-500">{student.subject}</p>
-                                                {isDebtor && (
-                                                    <span className="text-rose-600 font-bold bg-rose-50 px-2 py-0.5 rounded-md text-[10px] uppercase tracking-wide">
-                                                        Долг {Math.abs(student.balance)} ₽
-                                                    </span>
-                                                )}
-                                            </div>
+                                            <h3 className="font-bold text-slate-800 group-hover:text-blue-700 transition-colors flex items-center gap-2">
+                                                {student.name}
+                                                {pendingHW > 0 && <span className="bg-rose-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[1.25rem] text-center">{pendingHW}</span>}
+                                            </h3>
+                                            <div className="flex items-center gap-2 mt-1"><p className="text-sm text-slate-500">{student.subject}</p>{student.balance < 0 && <span className="text-rose-600 font-bold bg-rose-50 px-2 py-0.5 rounded-md text-[10px] uppercase tracking-wide">Долг {Math.abs(student.balance)} ₽</span>}</div>
                                         </div>
-                                        <ChevronRight className={`w-5 h-5 transition-colors ${isDebtor ? 'text-rose-300' : 'text-slate-300 group-hover:text-blue-400'}`} />
-                                    </div>
+                                        <ChevronRight className={`w-5 h-5 transition-colors ${student.balance < 0 ? 'text-rose-300' : 'text-slate-300 group-hover:text-blue-400'}`} />
+                                    </Card>
                                 );
                             })}
                         </div>
@@ -946,166 +1153,137 @@
                 );
             };
 
-            // --- Навигация и Layout ---
-
             const navItems = [
                 { id: 'dashboard', icon: <RefreshCw className="w-5 h-5" />, label: 'Главная' },
-                { id: 'finance', icon: <DollarSign className="w-5 h-5" />, label: 'Финансы' },
                 { id: 'reschedule', icon: <Clock className="w-5 h-5" />, label: 'Отработки' },
                 { id: 'students', icon: <Users className="w-5 h-5" />, label: 'Ученики' },
             ];
 
             return (
                 <div className="min-h-screen bg-slate-50 text-slate-800 font-sans selection:bg-blue-100">
-                    
-                    {/* Sidebar / Mobile Bottom Nav */}
                     <nav className="fixed bottom-0 left-0 w-full bg-white border-t border-slate-200 md:top-0 md:left-0 md:w-20 md:h-full md:border-t-0 md:border-r z-50 flex md:flex-col justify-around md:justify-start md:pt-8 md:gap-8 pb-safe">
-                        <div className="hidden md:flex justify-center mb-4">
-                            <div className="w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center text-white font-bold">Z</div>
-                        </div>
+                        <div className="hidden md:flex justify-center mb-4"><div className="w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center text-white font-bold">Z</div></div>
                         {navItems.map(item => (
-                            <button
-                                key={item.id}
-                                onClick={() => { setActiveTab(item.id); setSelectedStudentId(null); }}
-                                className={`p-3 rounded-xl flex flex-col md:items-center gap-1 transition-all ${activeTab === item.id ? 'text-blue-600 bg-blue-50 md:mx-2' : 'text-slate-400 hover:text-slate-600'}`}
-                            >
+                            <button key={item.id} onClick={() => { setActiveTab(item.id); setSelectedStudentId(null); }} className={`p-3 rounded-xl flex flex-col md:items-center gap-1 transition-all ${activeTab === item.id ? 'text-blue-600 bg-blue-50 md:mx-2' : 'text-slate-400 hover:text-slate-600'}`}>
                                 {item.icon}
                                 <span className="text-[10px] font-medium md:hidden">{item.label}</span>
                             </button>
                         ))}
                     </nav>
 
-                    {/* Main Content Area */}
-                    <main className="pb-24 pt-8 px-4 md:pl-28 md:pr-8 max-w-5xl mx-auto min-h-screen">
+                    <main className="pb-24 pt-8 px-4 md:pl-28 md:pr-8 max-w-6xl mx-auto min-h-screen">
                         {activeTab === 'dashboard' && renderDashboard()}
-                        {activeTab === 'finance' && renderFinance()}
                         {activeTab === 'reschedule' && renderRescheduling()}
                         {activeTab === 'students' && renderStudents()}
                     </main>
 
-                    {/* Modals */}
+                    {/* MODALS REPLACED WITH <Modal> COMPONENT */}
+
+                    <Modal isOpen={isStudentModalOpen} zIndex="z-[60]" contentClass="max-w-md">
+                        <h3 className="text-lg font-bold mb-4">{editingStudent ? 'Редактировать ученика' : 'Новый ученик'}</h3>
+                        <div className="space-y-3">
+                            <input className="w-full p-3 bg-slate-50 rounded-xl border-none focus:ring-2 focus:ring-blue-500 outline-none" placeholder="ФИО Ученика" value={studentForm.name} onChange={e => setStudentForm({...studentForm, name: e.target.value})} />
+                            <input className="w-full p-3 bg-slate-50 rounded-xl border-none focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Предмет (например, Математика)" value={studentForm.subject} onChange={e => setStudentForm({...studentForm, subject: e.target.value})} />
+                            <input className="w-full p-3 bg-slate-50 rounded-xl border-none focus:ring-2 focus:ring-blue-500 outline-none" type="number" placeholder="Ставка за урок (₽)" value={studentForm.rate} onChange={e => setStudentForm({...studentForm, rate: e.target.value})} />
+                        </div>
+                        <div className="flex gap-3 mt-6"><Button className="flex-1" onClick={handleSaveStudent}>{editingStudent ? 'Сохранить' : 'Создать'}</Button><Button variant="secondary" className="flex-1" onClick={() => setIsStudentModalOpen(false)}>Отмена</Button></div>
+                    </Modal>
+
+                    <Modal isOpen={isAddLessonOpen} zIndex="z-[60]" contentClass="max-w-md overflow-visible">
+                        <h3 className="text-lg font-bold mb-4">Запланировать урок</h3>
+                        <div className="space-y-3">
+                            <SimpleSelect 
+                                options={students.map(s => ({ value: s.id, label: s.name }))} 
+                                value={newLesson.studentId} 
+                                onChange={(val) => setNewLesson({...newLesson, studentId: val})} 
+                                placeholder="Выберите ученика"
+                                icon={Users}
+                            />
+                            <div className="flex gap-3">
+                                <SimpleDatePicker value={newLesson.date} onChange={date => setNewLesson({...newLesson, date})} className="flex-1" />
+                                <SimpleTimePicker value={newLesson.time} onChange={time => setNewLesson({...newLesson, time})} className="w-24 flex-none" />
+                            </div>
+                            <div className="flex gap-3">
+                                <div className="flex-1">
+                                    <label className="text-xs text-slate-400 font-bold ml-1 mb-1 block">Длительность</label>
+                                    <SimpleSelect
+                                        options={[
+                                            {value: '45', label: '45 мин'},
+                                            {value: '60', label: '60 мин'},
+                                            {value: '90', label: '90 мин'},
+                                            {value: '120', label: '120 мин'}
+                                        ]}
+                                        value={newLesson.duration}
+                                        onChange={val => setNewLesson({...newLesson, duration: val})}
+                                        icon={Clock}
+                                    />
+                                </div>
+                                <div className="flex-1">
+                                    <label className="text-xs text-slate-400 font-bold ml-1 mb-1 block">Повторять</label>
+                                    <SimpleSelect
+                                        options={[
+                                            {value: '1', label: 'Один раз'},
+                                            {value: '4', label: '4 недели'},
+                                            {value: '8', label: '8 недель'},
+                                            {value: '12', label: '12 недель'}
+                                        ]}
+                                        value={newLesson.repeat}
+                                        onChange={val => setNewLesson({...newLesson, repeat: val})}
+                                        icon={RefreshCw}
+                                    />
+                                </div>
+                            </div>
+                            <ToggleSwitch 
+                                label="Списывать оплату при отмене учеником" 
+                                checked={newLesson.burnOnCancel || false} 
+                                onChange={e => setNewLesson({...newLesson, burnOnCancel: e.target.checked})} 
+                            />
+                        </div>
+                        <div className="flex gap-3 mt-6"><Button className="flex-1" onClick={handleAddLesson}>Сохранить</Button><Button variant="secondary" className="flex-1" onClick={() => setIsAddLessonOpen(false)}>Отмена</Button></div>
+                    </Modal>
                     
-                    {isAddStudentOpen && (
-                        <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-[60] flex items-center justify-center p-4 animate-fade-in">
-                            <div className="bg-white w-full max-w-md rounded-2xl p-6 shadow-xl">
-                                <h3 className="text-lg font-bold mb-4">Новый ученик</h3>
-                                <div className="space-y-3">
-                                    <input className="w-full p-3 bg-slate-50 rounded-xl border-none focus:ring-2 focus:ring-blue-500 outline-none" placeholder="ФИО Ученика" value={newStudent.name} onChange={e => setNewStudent({...newStudent, name: e.target.value})} />
-                                    <input className="w-full p-3 bg-slate-50 rounded-xl border-none focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Предмет (например, Математика)" value={newStudent.subject} onChange={e => setNewStudent({...newStudent, subject: e.target.value})} />
-                                    <input className="w-full p-3 bg-slate-50 rounded-xl border-none focus:ring-2 focus:ring-blue-500 outline-none" type="number" placeholder="Ставка за урок (₽)" value={newStudent.rate} onChange={e => setNewStudent({...newStudent, rate: e.target.value})} />
-                                </div>
-                                <div className="flex gap-3 mt-6">
-                                    <Button className="flex-1" onClick={handleAddStudent}>Создать</Button>
-                                    <Button variant="secondary" className="flex-1" onClick={() => setIsAddStudentOpen(false)}>Отмена</Button>
-                                </div>
+                    <Modal isOpen={isReportOpen && selectedStudentId} zIndex="z-[70]" contentClass="max-w-lg relative" overlayClass="overflow-y-auto">
+                        <h3 className="text-lg font-bold mb-4 text-slate-800">Предварительный просмотр отчета</h3>
+                        <div className="border border-slate-200 rounded-xl p-8 bg-white mb-6" id="report-card">
+                            <div className="flex justify-between items-center mb-8">
+                                <div className="w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center text-white font-bold text-xl">Z</div>
+                                <div className="text-right"><p className="text-xs text-slate-400 uppercase tracking-wider font-bold">Отчет успеваемости</p><p className="text-slate-800 font-medium">{new Date().toLocaleDateString()}</p></div>
+                            </div>
+                            <div className="mb-8"><h2 className="text-3xl font-bold text-slate-900">{getStudent(selectedStudentId)?.name}</h2><p className="text-slate-500 text-lg">{getStudent(selectedStudentId)?.subject}</p></div>
+                            <div className="grid grid-cols-2 gap-4 mb-8">
+                                <div className="bg-slate-50 p-4 rounded-xl"><span className="text-xs text-slate-400 uppercase font-bold block mb-1">Баланс</span><span className={`text-2xl font-mono font-bold ${getStudent(selectedStudentId)?.balance >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{getStudent(selectedStudentId)?.balance} ₽</span></div>
+                                <div className="bg-slate-50 p-4 rounded-xl"><span className="text-xs text-slate-400 uppercase font-bold block mb-1">Проведено уроков</span><span className="text-2xl font-mono font-bold text-slate-700">{lessons.filter(l => l.studentId.toString() === selectedStudentId?.toString() && l.status === 'Completed').length}</span></div>
+                            </div>
+                            <div>
+                                <h4 className="font-bold text-slate-800 mb-3 text-sm uppercase tracking-wide">Последние темы</h4>
+                                <ul className="space-y-2">
+                                    {lessons.filter(l => l.studentId.toString() === selectedStudentId?.toString() && l.status === 'Completed' && l.topic).sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 5).map((l, i) => (
+                                        <li key={i} className="flex justify-between text-sm border-b border-slate-100 pb-2 last:border-0"><span className="text-slate-700">{l.topic}</span><span className="text-slate-400">{new Date(l.date).toLocaleDateString()}</span></li>
+                                    ))}
+                                    {lessons.filter(l => l.studentId.toString() === selectedStudentId?.toString() && l.status === 'Completed' && l.topic).length === 0 && <li className="text-slate-400 text-sm italic">Темы пока не записаны</li>}
+                                </ul>
                             </div>
                         </div>
-                    )}
+                        <div className="flex gap-3"><Button className="flex-1" onClick={downloadReport}><Download className="w-4 h-4" /> Скачать как картинку</Button><Button variant="secondary" className="flex-1" onClick={() => setIsReportOpen(false)}>Закрыть</Button></div>
+                    </Modal>
 
-                    {isAddLessonOpen && (
-                        <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-[60] flex items-center justify-center p-4 animate-fade-in">
-                            <div className="bg-white w-full max-w-md rounded-2xl p-6 shadow-xl">
-                                <h3 className="text-lg font-bold mb-4">Запланировать урок</h3>
-                                <div className="space-y-3">
-                                    <select 
-                                        className="w-full p-3 bg-slate-50 rounded-xl border-none focus:ring-2 focus:ring-blue-500 outline-none"
-                                        value={newLesson.studentId}
-                                        onChange={e => setNewLesson({...newLesson, studentId: e.target.value})}
-                                    >
-                                        <option value="">Выберите ученика</option>
-                                        {students.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                                    </select>
-                                    <div className="flex gap-3">
-                                        <SimpleDatePicker 
-                                            value={newLesson.date} 
-                                            onChange={date => setNewLesson({...newLesson, date})} 
-                                            className="flex-1"
-                                        />
-                                        <SimpleTimePicker
-                                            value={newLesson.time}
-                                            onChange={time => setNewLesson({...newLesson, time})}
-                                            className="w-24 flex-none"
-                                        />
-                                    </div>
-                                </div>
-                                <div className="flex gap-3 mt-6">
-                                    <Button className="flex-1" onClick={handleAddLesson}>Сохранить</Button>
-                                    <Button variant="secondary" className="flex-1" onClick={() => setIsAddLessonOpen(false)}>Отмена</Button>
-                                </div>
-                            </div>
+                    <Modal isOpen={confirmation.isOpen} zIndex="z-[80]" contentClass="max-w-sm">
+                        <h3 className="text-lg font-bold mb-2 text-slate-800">Подтверждение</h3>
+                        <p className="text-slate-600 mb-6">{confirmation.message}</p>
+                        <div className="flex gap-3">
+                            <Button variant="danger" className="flex-1" onClick={confirmation.onConfirm}>Да, удалить</Button>
+                            <Button variant="secondary" className="flex-1" onClick={() => setConfirmation({ ...confirmation, isOpen: false })}>Отмена</Button>
                         </div>
-                    )}
-                    
-                    {/* Report Modal */}
-                    {isReportOpen && selectedStudentId && (
-                        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[70] flex items-center justify-center p-4 animate-fade-in overflow-y-auto">
-                            <div className="bg-white w-full max-w-lg rounded-2xl p-6 shadow-2xl relative">
-                                <h3 className="text-lg font-bold mb-4 text-slate-800">Предварительный просмотр отчета</h3>
-                                <div className="border border-slate-200 rounded-xl p-8 bg-white mb-6" id="report-card">
-                                    <div className="flex justify-between items-center mb-8">
-                                        <div className="w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center text-white font-bold text-xl">Z</div>
-                                        <div className="text-right">
-                                            <p className="text-xs text-slate-400 uppercase tracking-wider font-bold">Отчет успеваемости</p>
-                                            <p className="text-slate-800 font-medium">{new Date().toLocaleDateString()}</p>
-                                        </div>
-                                    </div>
-                                    
-                                    <div className="mb-8">
-                                        <h2 className="text-3xl font-bold text-slate-900">{getStudent(selectedStudentId).name}</h2>
-                                        <p className="text-slate-500 text-lg">{getStudent(selectedStudentId).subject}</p>
-                                    </div>
-
-                                    <div className="grid grid-cols-2 gap-4 mb-8">
-                                        <div className="bg-slate-50 p-4 rounded-xl">
-                                            <span className="text-xs text-slate-400 uppercase font-bold block mb-1">Баланс</span>
-                                            <span className={`text-2xl font-mono font-bold ${getStudent(selectedStudentId).balance >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                                                {getStudent(selectedStudentId).balance} ₽
-                                            </span>
-                                        </div>
-                                        <div className="bg-slate-50 p-4 rounded-xl">
-                                            <span className="text-xs text-slate-400 uppercase font-bold block mb-1">Проведено уроков</span>
-                                            <span className="text-2xl font-mono font-bold text-slate-700">
-                                                {lessons.filter(l => l.studentId.toString() === selectedStudentId.toString() && l.status === 'Completed').length}
-                                            </span>
-                                        </div>
-                                    </div>
-
-                                    <div>
-                                        <h4 className="font-bold text-slate-800 mb-3 text-sm uppercase tracking-wide">Последние темы</h4>
-                                        <ul className="space-y-2">
-                                            {lessons
-                                                .filter(l => l.studentId.toString() === selectedStudentId.toString() && l.status === 'Completed' && l.topic)
-                                                .sort((a, b) => new Date(b.date) - new Date(a.date))
-                                                .slice(0, 5)
-                                                .map((l, i) => (
-                                                    <li key={i} className="flex justify-between text-sm border-b border-slate-100 pb-2 last:border-0">
-                                                        <span className="text-slate-700">{l.topic}</span>
-                                                        <span className="text-slate-400">{new Date(l.date).toLocaleDateString()}</span>
-                                                    </li>
-                                                ))}
-                                            {lessons.filter(l => l.studentId.toString() === selectedStudentId.toString() && l.status === 'Completed' && l.topic).length === 0 && (
-                                                <li className="text-slate-400 text-sm italic">Темы пока не записаны</li>
-                                            )}
-                                        </ul>
-                                    </div>
-                                </div>
-                                <div className="flex gap-3">
-                                    <Button className="flex-1" onClick={downloadReport}>
-                                        <Download className="w-4 h-4" /> Скачать как картинку
-                                    </Button>
-                                    <Button variant="secondary" className="flex-1" onClick={() => setIsReportOpen(false)}>Закрыть</Button>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
+                    </Modal>
                 </div>
             );
         }
 
-        // Рендеринг
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<ZenTutorApp />);
+        
+        // Remove loading screen when React mounts
+        document.getElementById('loading-text').style.display = 'none';
     </script>
 </body>
 </html>
